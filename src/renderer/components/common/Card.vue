@@ -2,7 +2,7 @@
     <Card
         v-if="styleType == 'typical'"
         class="card-backing inset-content"
-        :class="{ selected: isSelected, disabled: disabled, opaque: opaque }"
+        :class="{ hover: hover, selected: isSelected, disabled: disabled, opaque: opaque }"
         @click="onClick"
     >
         <template #header v-if="headerImgUrl">
@@ -17,11 +17,11 @@
     <Card
         v-else-if="styleType == 'cover'"
         class="card-backing"
-        :class="{ selected: isSelected, disabled: disabled, opaque: opaque }"
+        :class="{ hover: hover, selected: isSelected, disabled: disabled, opaque: opaque }"
         @click="onClick"
     >
         <template #content>
-            <img class="back-image" :src="backgroundImgUrl" />
+            <img v-if="backgroundImgUrl" class="back-image" :src="backgroundImgUrl" />
             <div class="inset-content cover-content flex-col flex-justify-end">
                 <div v-if="headerImgUrl"><img alt="user header" :src="headerImgUrl" /></div>
                 <h3 v-if="title">{{ title }}</h3>
@@ -44,6 +44,7 @@ const props = withDefaults(
         title?: string;
         subTitle?: string;
         disabled?: boolean;
+        hover?: boolean;
         opaque?: boolean;
         styleType?: "typical" | "cover";
     }>(),
@@ -60,6 +61,9 @@ const emit = defineEmits<{
 }>();
 
 const onClick = (event) => {
+    if (!props.hover) {
+        return;
+    }
     createRipple(event);
     emit("tap");
 };
@@ -120,6 +124,10 @@ const createRipple = (event) => {
     border: 3px solid rgba(255, 255, 255, 0.05) !important;
 }
 
+.hover {
+    pointer-events: auto !important;
+}
+
 .opaque {
     background: linear-gradient(rgba(0, 0, 0, 0.8), rgba(0, 0, 0, 0.85), rgba(0, 0, 0, 0.9)) !important;
     backdrop-filter: blur(10px) brightness(1) saturate(2) !important;
@@ -129,6 +137,7 @@ const createRipple = (event) => {
 .card-backing {
     position: relative;
     display: flex;
+    pointer-events: none;
     gap: 10px;
     overflow: hidden;
     background: linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0.6));
@@ -146,7 +155,7 @@ const createRipple = (event) => {
     border: 3px solid rgb(0, 174, 255) !important;
 }
 
-.card-backing:hover {
+.card-backing:hover:not(:has(div:hover)) {
     background-color: #2980b9;
     transform: scale(1.05);
 }

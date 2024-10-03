@@ -11,6 +11,7 @@
                     <div v-if="!fetchingPlaylists">
                         <div class="flex-row flex-wrap gap-xl">
                             <Card
+                                hover
                                 :is-selected="selectedMode == 'ranked'"
                                 v-on:tap="selectedMode != 'ranked' ? (selectedMode = 'ranked') : (selectedMode = 'none')"
                                 class="card-height flex-grow"
@@ -21,6 +22,7 @@
                                 <p>Compete in structured matches to earn points and improve your rank.</p>
                             </Card>
                             <Card
+                                hover
                                 :is-selected="selectedMode == 'casual'"
                                 v-on:tap="selectedMode != 'casual' ? (selectedMode = 'casual') : (selectedMode = 'none')"
                                 class="card-height flex-grow"
@@ -31,6 +33,7 @@
                                 <p>Enjoy relaxed matches without pressure.</p>
                             </Card>
                             <Card
+                                hover
                                 :is-selected="selectedMode == 'co-op'"
                                 v-on:tap="selectedMode != 'co-op' ? (selectedMode = 'co-op') : (selectedMode = 'none')"
                                 class="card-height flex-grow"
@@ -45,6 +48,7 @@
                             <div class="flex-row flex-wrap gap-md" v-if="activeQueueGroup != null">
                                 <TransitionGroup>
                                     <Card
+                                        hover
                                         v-for="(playlist, innerIndex) in activeQueueGroup.playLists"
                                         :key="innerIndex"
                                         :is-selected="selectedPlaylists.includes(playlist.key)"
@@ -71,7 +75,7 @@
                     <div v-else><Loader /></div>
                 </Transition>
                 <div class="flex-row flex-grow flex-align-end flex-justify-end">
-                    <h4><Card @click="onTapQueue" :disabled="actualSelectedPlaylistIds.length == 0">Play</Card></h4>
+                    <h4><Card hover @click="onTapQueue" :disabled="actualSelectedPlaylistIds.length == 0">Play</Card></h4>
                 </div>
             </div>
             <div v-else class="flex-col gap-md flex-grow flex-center-content">
