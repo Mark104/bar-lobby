@@ -1,215 +1,137 @@
-import { Static } from "@sinclair/typebox";
 import { assign } from "jaz-ts-utils";
-import { lobbySchema, myUserSchema, playerSchema, ResponseType, userSchema } from "tachyon-client";
-import { computed, ComputedRef, nextTick, reactive, Ref, ref, shallowReactive, shallowRef } from "vue";
+import { GetCommandData, GetCommands } from "tachyon-protocol";
+import { PrivateUser, User } from "tachyon-protocol/types";
+import { computed, ComputedRef, reactive, Ref, ref, shallowReactive, shallowRef } from "vue";
 
-import { OfflineBattle } from "@/model/battle/offline-battle";
-import { SpadsBattle } from "@/model/battle/spads-battle";
+import { MatchmakingStateStore } from "@/model/matchmaking/matchmakingstate";
+import { MatchmakingBattle } from "@/model/battle/matchmaking-battle";
+import { OfflineCustomBattle } from "@/model/battle/offline-custom-battle";
+import { OnlineCustomBattle } from "@/model/battle/online-custom-battle";
 import { Message } from "@/model/messages";
-import { CurrentUser, User } from "@/model/user";
+// import { CurrentUser, User } from "@/model/user";
 
 export class SessionAPI {
     public readonly offlineMode: Ref<boolean> = ref(false);
-    public readonly offlineBattle: Ref<OfflineBattle | null> = shallowRef(null);
-    public readonly onlineBattle: Ref<SpadsBattle | null> = shallowRef(null);
-    public readonly users: Map<number, User> = reactive(new Map<number, User>([]));
-    public readonly offlineUser: CurrentUser;
-    public readonly onlineUser: CurrentUser;
-    public readonly battles: Map<number, SpadsBattle> = shallowReactive(new Map<number, SpadsBattle>());
+    public readonly offlineBattle: Ref<OfflineCustomBattle | null> = shallowRef(null);
+    public readonly onlineBattle: Ref<OnlineCustomBattle | MatchmakingBattle | null> = shallowRef(null);
+    public readonly users: Map<string, User> = reactive(new Map([]));
+    public readonly offlineUser: User;
+    public readonly onlineUser: PrivateUser;
+    public readonly customBattles: Map<number, OnlineCustomBattle> = shallowReactive(new Map());
     public readonly battleMessages: Message[] = reactive([]);
-    public readonly serverStats: Ref<ResponseType<"s.system.server_stats">["data"] | null> = shallowRef(null);
-    public readonly outgoingFriendRequests: ComputedRef<User[]>;
-    public readonly incomingFriendRequests: ComputedRef<User[]>;
+    public readonly serverStats: Ref<GetCommandData<GetCommands<"server", "user", "response", "system/serverStats">> | null> = shallowRef(null);
+    // public readonly outgoingFriendRequests: ComputedRef<User[]>;
+    // public readonly incomingFriendRequests: ComputedRef<User[]>;
     public readonly friends: ComputedRef<User[]>;
     public readonly directMessages: Map<number, Message[]> = reactive(new Map());
-
-    // temporary necessity until https://github.com/beyond-all-reason/teiserver/issues/34 is implemented
-    public lastBattleResponses: Map<number, Static<typeof lobbySchema>> = new Map();
+    public readonly searchingForGame = ref(false);
+    public readonly bearerToken = ref("");
+    public readonly matchmakingState: MatchmakingStateStore;
 
     constructor() {
-        // TODO: remove class initialisers, do everything in clear function, then call this.clear() from this constructor, and also call .clear() on logout
+        // TODO: should be in this.clear()?
         this.offlineMode.value = false;
         this.offlineBattle.value = null;
         this.onlineBattle.value = null;
         this.users.clear();
-        this.battles.clear();
+        this.customBattles.clear();
         this.battleMessages.length = 0;
         this.serverStats.value = null;
         this.directMessages.clear();
+        this.matchmakingState = new MatchmakingStateStore();
 
-        const userData: CurrentUser = {
-            userId: -1,
+        const user: PrivateUser = {
+            userId: "",
             username: "Player",
-            isBot: false,
-            icons: {},
+            displayName: "Player",
             clanId: null,
             countryCode: "",
-            permissions: new Set([]),
-            friendUserIds: new Set([]),
-            incomingFriendRequestUserIds: new Set([]),
-            outgoingFriendRequestUserIds: new Set([]),
-            ignoreUserIds: new Set([]),
-            isOnline: true,
-            battleStatus: {
-                inBattle: false,
-                away: false,
-                battleId: -1,
-                ready: false,
-                isSpectator: false,
-                sync: {
-                    engine: 1,
-                    game: 1,
-                    map: 1,
-                },
-                color: "",
-                teamId: 0,
-                playerId: 0,
-            },
+            status: "offline",
+            battleStatus: null,
+            friendIds: [],
+            ignoreIds: [],
+            incomingFriendRequestIds: [],
+            outgoingFriendRequestIds: [],
+            //avatarUrl: "",
+            partyId: null,
+            scopes: [],
+            //roles: [],
         };
 
-        this.offlineUser = reactive(userData);
+        this.offlineUser = reactive(user);
 
-        this.onlineUser = reactive(userData);
+        this.onlineUser = reactive(user);
 
-        this.outgoingFriendRequests = computed(() => [...this.onlineUser.outgoingFriendRequestUserIds].map((id) => this.getUserById(id)!).filter(Boolean));
-        this.incomingFriendRequests = computed(() => [...this.onlineUser.incomingFriendRequestUserIds].map((id) => this.getUserById(id)!).filter(Boolean));
-        this.friends = computed(() => [...this.onlineUser.friendUserIds].map((id) => this.getUserById(id)!).filter(Boolean));
+        // this.incomingFriendRequests = computed(() => this.onlineUser.incomingFriendRequestIds.map((id) => this.getUserById(id)!).filter(Boolean));
+        // this.outgoingFriendRequests = computed(() => this.onlineUser.outgoingFriendRequestIds.map((id) => this.getUserById(id)!).filter(Boolean));
+        this.friends = computed(() => this.onlineUser.friendIds.map((id) => this.getUserById(id)).filter(Boolean));
     }
 
     public clear() {
-        // TODO
+        api.session.onlineBattle.value = null;
+        api.session.users.clear();
+        api.session.customBattles.clear();
+
+        // TODO: reset online user
     }
 
-    public updateCurrentUser(myUserData: Static<typeof myUserSchema>) {
-        this.users.set(myUserData.id, this.onlineUser);
-
-        const user = this.updateUser(myUserData);
-
-        assign(this.onlineUser, {
-            ...user,
-            incomingFriendRequestUserIds: new Set(myUserData.friend_requests),
-            ignoreUserIds: new Set([]), // TODO
-            permissions: new Set(myUserData.permissions),
-            friendUserIds: new Set(myUserData.friends),
-        });
-
-        this.offlineUser.username = user.username;
-        this.offlineUser.countryCode = user.countryCode; // TODO: temp hack because server schema changed and I'm lazy
-        this.offlineUser.icons = user.icons;
-    }
-
-    public updateUser(userData: Static<typeof userSchema>) {
-        let user = this.getUserById(userData.id);
-
-        if (!user) {
-            user = reactive({
-                userId: userData.id,
-                username: userData.name,
-                clanId: userData.clan_id,
-                isBot: userData.bot,
-                countryCode: userData.country,
-                icons: {},
-                isOnline: false,
-                battleStatus: {
-                    inBattle: false,
-                    away: false,
-                    battleId: -1,
-                    ready: false,
-                    isSpectator: false,
-                    sync: {
-                        engine: 1,
-                        game: 1,
-                        map: 1,
-                    },
-                    color: "",
-                    teamId: 0,
-                    playerId: 0,
-                },
-            });
+    public updateCurrentUser(userData: Partial<PrivateUser>) {
+        if (!userData.userId) {
+            console.error("Received user update without userId", userData);
+            return;
         }
 
-        this.users.set(user.userId, user);
+        this.users.set(userData.userId, this.onlineUser);
 
-        user.userId = userData.id;
-        user.username = userData.name;
-        user.clanId = userData.clan_id;
-        user.isBot = userData.bot;
-        user.countryCode = userData.country;
-        user.icons = userData.icons;
-
-        return user;
+        assign(this.onlineUser, userData);
     }
 
-    public updateUserBattleStauts(battleStatusData: Static<typeof playerSchema>) {
-        const user = this.getUserById(battleStatusData.userid);
-        if (!user) {
-            throw new Error(`Tried to update battle status for an unknown user: ${battleStatusData.userid}`);
+    public updateUser(userData: User) {
+        if (!userData.userId) {
+            console.error("Received user update without userId", userData);
+            return;
         }
 
-        user.battleStatus.away = battleStatusData.away;
-        user.battleStatus.battleId = battleStatusData.lobby_id;
-        user.battleStatus.inBattle = battleStatusData.in_game;
-        user.battleStatus.isSpectator = !battleStatusData.player;
-        user.battleStatus.sync = battleStatusData.sync;
-        user.battleStatus.teamId = battleStatusData.team_number;
-        user.battleStatus.playerId = battleStatusData.player_number;
-        user.battleStatus.color = battleStatusData.team_colour;
-        user.battleStatus.ready = battleStatusData.ready;
+        let user: User | undefined = this.getUserById(userData.userId);
 
-        user.isOnline = true;
+        if (!user) {
+            user = reactive(userData);
+        } else {
+            assign(user, userData);
+        }
     }
 
-    public getUserById(userId: number) {
+    public getUserById(userId: string): User | undefined {
         const user = this.users.get(userId);
         return user;
     }
 
-    public getUserByName(username: string) {
-        for (const user of this.users.values()) {
-            if (user.username === username) {
-                return user;
-            }
-        }
+    // public async updateBattleList() {
+    //     const { lobbies } = await api.comms.request("c.lobby.query", { query: {}, fields: ["lobby", "bots", "modoptions", "member_list"] });
 
-        return undefined;
-    }
+    //     const userIds: number[] = [];
+    //     for (const battle of lobbies.map((data) => data.lobby)) {
+    //         userIds.push(...battle.players);
+    //         userIds.push(battle.founder_id);
+    //     }
 
-    public async fetchUserById(userId: number): Promise<User> {
-        const user = this.getUserById(userId);
-        if (user) {
-            return user;
-        }
-        await api.comms.request("c.user.list_users_from_ids", { id_list: [userId], include_clients: true });
-        await nextTick();
-        return this.fetchUserById(userId);
-    }
+    //     await api.comms.request("c.user.list_users_from_ids", { id_list: userIds, include_clients: true });
 
-    public async updateBattleList() {
-        const { lobbies } = await api.comms.request("c.lobby.query", { query: {}, fields: ["lobby", "bots", "modoptions", "member_list"] });
+    //     for (const lobby of lobbies) {
+    //         const battle = api.session.battles.get(lobby.lobby.id);
+    //         if (!battle) {
+    //             api.session.battles.set(lobby.lobby.id, new SpadsBattle(lobby));
+    //         } else {
+    //             battle.handleServerResponse(lobby);
+    //         }
+    //     }
 
-        const userIds: number[] = [];
-        for (const battle of lobbies.map((data) => data.lobby)) {
-            userIds.push(...battle.players);
-            userIds.push(battle.founder_id);
-        }
-
-        await api.comms.request("c.user.list_users_from_ids", { id_list: userIds, include_clients: true });
-
-        for (const lobby of lobbies) {
-            const battle = api.session.battles.get(lobby.lobby.id);
-            if (!battle) {
-                api.session.battles.set(lobby.lobby.id, new SpadsBattle(lobby));
-            } else {
-                battle.handleServerResponse(lobby);
-            }
-        }
-
-        // clear up dead battles
-        const lobbyIds = lobbies.map((lobby) => lobby.lobby.id);
-        api.session.battles.forEach((battle) => {
-            if (!lobbyIds.includes(battle.battleOptions.id)) {
-                api.session.battles.delete(battle.battleOptions.id);
-            }
-        });
-    }
+    //     // clear up dead battles
+    //     const lobbyIds = lobbies.map((lobby) => lobby.lobby.id);
+    //     api.session.battles.forEach((battle) => {
+    //         if (!lobbyIds.includes(battle.battleOptions.id)) {
+    //             api.session.battles.delete(battle.battleOptions.id);
+    //         }
+    //     });
+    // }
 }

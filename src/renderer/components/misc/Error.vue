@@ -1,8 +1,9 @@
 <template>
     <Modal v-model="isVisible" title="Fatal Error" class="error-modal">
         <div class="flex-col gap-md">
-            <div>A fatal error has occurred and BAR Lobby needs to reload.</div>
+            <div>A fatal error has occurred and BAR Lobby may need to reload.</div>
             <div v-if="error" class="error">{{ error.message }}</div>
+            <div v-if="error?.error?.stack" class="error">{{ sanitizeStack(error.error.stack) }}</div>
             <div v-if="promiseError?.reason.stack" class="error">{{ promiseError.reason.stack }}</div>
             <Button @click="onReload">Reload</Button>
         </div>
@@ -14,6 +15,7 @@ import { Ref, ref } from "vue";
 
 import Modal from "@/components/common/Modal.vue";
 import Button from "@/components/controls/Button.vue";
+import { ipcRenderer } from "electron";
 
 const isVisible = ref(false);
 const error: Ref<ErrorEvent | null> = ref(null);
@@ -23,6 +25,7 @@ window.addEventListener("unhandledrejection", function (event) {
     console.error(event);
     console.log("unhandled rejection");
     promiseError.value = event;
+    error.value = null;
     isVisible.value = true;
 });
 
@@ -34,12 +37,17 @@ window.addEventListener("error", (event) => {
     }
 
     error.value = event;
+    promiseError.value = null;
     console.error(event);
     isVisible.value = true;
 });
 
 function onReload() {
-    window.document.location.reload();
+    ipcRenderer.invoke("reloadWindow");
+}
+
+function sanitizeStack(stack: string) {
+    return stack.replaceAll(/http:\/\/.*?node_modules\//g, "node_modules/");
 }
 </script>
 

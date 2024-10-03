@@ -24,11 +24,12 @@
             <InitialSetup v-else-if="state === 'initial-setup'" @complete="onInitialSetupDone" />
             <div v-else class="fullsize">
                 <NavBar :class="{ hidden: empty }" />
-                <div :class="`view view--${$router.currentRoute.value.name?.toString()}`">
+                <div :class="`relative view view--${$router.currentRoute.value.name?.toString()}`">
+                    <MatchmakingQueueStatus />
                     <Panel :empty="empty" class="flex-grow">
                         <Breadcrumbs :class="{ hidden: empty }" />
                         <router-view v-slot="{ Component, route }">
-                            <transition name="slide-left">
+                            <transition name="slide-left" mode="out-in">
                                 <!--mode= "out-in" causes bug see https://github.com/beyond-all-reason/bar-lobby/issues/61 add back in once vue fixes underlining issue-->
                                 <template v-if="Component">
                                     <suspense timeout="0">
@@ -65,6 +66,7 @@ import DebugSidebar from "@/components/misc/DebugSidebar.vue";
 import Error from "@/components/misc/Error.vue";
 import InitialSetup from "@/components/misc/InitialSetup.vue";
 import IntroVideo from "@/components/misc/IntroVideo.vue";
+import MatchmakingQueueStatus from "@/components/misc/MatchmakingQueueStatus.vue";
 import Preloader from "@/components/misc/Preloader.vue";
 import Breadcrumbs from "@/components/navbar/Breadcrumbs.vue";
 import NavBar from "@/components/navbar/NavBar.vue";
@@ -80,7 +82,7 @@ const settings = api.settings.model;
 const skipIntro = settings.skipIntro;
 const videoVisible = ref(!settings.skipIntro);
 const state: Ref<"preloader" | "initial-setup" | "default"> = ref("preloader");
-const empty = ref(false);
+const empty = ref(api.router.currentRoute.value.meta.empty ?? false);
 const blurBg = ref(true);
 const lobbyVersion = api.info.lobby.version;
 const viewOverflowY = computed(() => (router.currentRoute.value.meta.overflowY ? router.currentRoute.value.meta.overflowY : "auto"));
@@ -112,8 +114,6 @@ function onIntroEnd() {
 }
 
 async function onPreloadDone() {
-    console.time("onPreloadDone");
-
     // TODO: should also check to see if game and maps are installed (need to fix bug where interrupted game dl reports as successful install)
     if (api.content.engine.installedVersions.length === 0) {
         state.value = "initial-setup";
@@ -125,8 +125,6 @@ async function onPreloadDone() {
 
         state.value = "default";
     }
-
-    console.timeEnd("onPreloadDone");
 }
 
 function onInitialSetupDone() {

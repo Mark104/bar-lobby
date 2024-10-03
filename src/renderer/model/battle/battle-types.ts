@@ -1,3 +1,9 @@
+import { TachyonUser } from "tachyon-protocol";
+
+export type BattleUser = BattlePlayer | BattleSpectator;
+export type BattlePlayer = TachyonUser & { battleStatus: { isSpectator: false } };
+export type BattleSpectator = TachyonUser & { battleStatus: { isSpectator: true } };
+
 export type BattleOptions = {
     title: string;
     engineVersion: string;
@@ -11,26 +17,33 @@ export type BattleOptions = {
     restrictions: Restriction[];
 };
 
-export type OfflineBattleOptions = BattleOptions;
+export type CustomBattleOptions = BattleOptions;
 
-export type SpadsBattleOptions = BattleOptions & {
+export type OfflineCustomBattleOptions = CustomBattleOptions;
+
+export type OnlineBattleOptions = BattleOptions & {
     id: number;
     isHost: boolean;
-    passworded: boolean;
-    password: string | null;
-    scriptPassword: string | null;
-    founderId: number;
     ip: string | null;
     port: number | null;
-    locked: boolean;
-    maxPlayers: number;
-    preset: string;
-    joinQueueUserIds: number[];
-    autoBalance: string;
-    teamSize: number;
-    nbTeams: number;
-    balanceMode: string;
+    hostId: number;
+    scriptPassword: string | null;
 };
+
+export type OnlineCustomBattleOptions = OnlineBattleOptions &
+    CustomBattleOptions & {
+        passworded: boolean;
+        locked: boolean;
+        maxPlayers: number;
+        preset: string;
+        joinQueueUserIds: number[];
+        autoBalance: string;
+        teamSize: number;
+        nbTeams: number;
+        balanceMode: string;
+    };
+
+export type MatchmakingBattleOptions = OnlineBattleOptions;
 
 export type StartBox = {
     xPercent: number;

@@ -9,7 +9,7 @@
                                 {{ title }}
                             </slot>
                         </div>
-                        <div class="close" @click="close" @mouseenter="sound">
+                        <div v-if="!persistent" class="close" @click="close" @mouseenter="sound">
                             <Icon :icon="closeThick" height="23" />
                         </div>
                     </template>
@@ -39,9 +39,10 @@ import { nextTick, Ref, ref, toRef, watch } from "vue";
 import Panel from "@/components/common/Panel.vue";
 
 export type PanelProps = InstanceType<typeof Panel>["$props"];
-export interface ModalProps extends PanelProps {
+export interface ModalProps extends /* @vue-ignore */ PanelProps {
     modelValue: boolean;
     title?: string;
+    persistent?: boolean;
 }
 
 const props = withDefaults(defineProps<ModalProps>(), {

@@ -2,7 +2,7 @@
     <div class="nav" :class="{ hidden }">
         <div class="logo">
             <Button to="/home">
-                <img src="/images/logo.svg" />
+                <img :src="logo" />
             </Button>
         </div>
         <div class="flex-col flex-grow">
@@ -56,7 +56,7 @@
                     <Button v-if="!offlineMode" class="server-status">
                         <div class="flex-row flex-center gap-sm">
                             <div class="server-status-dot" :class="{ offline: serverOffline }">⬤</div>
-                            <div v-if="serverStats && !serverOffline">{{ serverStats.user_count }} Players Online</div>
+                            <div v-if="serverStats && !serverOffline">{{ serverStats.userCount }} Players Online</div>
                             <div v-else-if="serverOffline">Offline Mode</div>
                         </div>
                     </Button>
@@ -93,6 +93,7 @@ import messageIcon from "@iconify-icons/mdi/chat";
 import closeThick from "@iconify-icons/mdi/close-thick";
 import cog from "@iconify-icons/mdi/cog";
 import { computed, inject, Ref, ref } from "vue";
+import logo from "@/assets/images/logo.svg?url";
 
 import Button from "@/components/controls/Button.vue";
 import Downloads from "@/components/navbar/Downloads.vue";

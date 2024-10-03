@@ -18,6 +18,9 @@
 
             <div>Dev Mode</div>
             <Checkbox v-model="settings.devMode" />
+
+            <div>Login Automatically</div>
+            <Checkbox v-model="settings.loginAutomatically" />
         </div>
     </Modal>
 </template>
@@ -41,6 +44,8 @@ watch(
 );
 
 function onOpen() {
+    console.log("test");
+
     displayOptions.value = Array(api.info.hardware.numOfDisplays)
         .fill(0)
         .map((x, i) => {
