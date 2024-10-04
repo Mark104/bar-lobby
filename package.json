@@ -73,6 +73,7 @@
     "sdfz-demo-parser": "^5.9.1",
     "spring-map-parser": "^6.1.1",
     "steamworks.js": "^0.3.1",
+    "tachyon-client": "^11.0.0",
     "tachyon-protocol": "^1.9.0",
     "tsx": "^4.19.1",
     "vite-svg-loader": "^5.1.0",
